@@ -1,5 +1,55 @@
 # Architecture
 
+```mermaid
+flowchart LR
+  tf["terraform apply<br/>(tenants/)"]
+  user["Browser"]
+  internet(("Internet"))
+
+  subgraph org["VCF Automation org"]
+    subgraph shared["shared-services VPC"]
+      subgraph awxns["Supervisor Namespace"]
+        awx["VKS cluster: AWX"]
+      end
+    end
+
+    tgw{{"Transit gateway<br/>(PrivateTGW subnets, no SNAT)"}}
+
+    subgraph a["tenant-a VPC"]
+      subgraph ans["Supervisor Namespace"]
+        abind["AWXConnection +<br/>AnsibleBinding"]
+        avm["tenant-a-web VM"]
+        avip["Avi VIP :80"]
+      end
+    end
+
+    subgraph b["tenant-b VPC"]
+      subgraph bns["Supervisor Namespace"]
+        bbind["AWXConnection +<br/>AnsibleBinding"]
+        bvm["tenant-b-web VM"]
+        bvip["Avi VIP :80"]
+      end
+    end
+
+    fw["Org firewall policies<br/>tenant-mgmt, tenant-egress, tenant-vip-http"]
+  end
+
+  tf -->|projects, VPCs, namespaces,<br/>VMs, firewall| org
+  abind -->|launch job| awx
+  bbind -->|launch job| awx
+  awx -->|ssh| tgw
+  tgw -->|ssh: allowed by tenant-mgmt| avm
+  tgw -->|ssh: allowed by tenant-mgmt| bvm
+  user -->|HTTP: allowed by tenant-vip-http| avip --> avm
+  user -->|HTTP: allowed by tenant-vip-http| bvip --> bvm
+  avm -->|allowed by tenant-egress| internet
+  avm --x|blocked| bvm
+  fw -.-|applied to| a
+  fw -.-|applied to| b
+```
+
+The Ansible Supervisor Service watches each tenant's `AnsibleBinding` and launches the job in AWX through that tenant's `AWXConnection`. AWX then reaches the VM over SSH. Each tenant VPC's security profile denies everything else inbound, including traffic from the other tenant.
+
 ## Isolation
 
 Each tenant VPC gets the built-in *VPC External Connectivity* security profile, which allows outbound traffic and denies inbound and VPC-to-VPC traffic. Three org-level Infrastructure firewall policies in `tenants/isolation.tf` sit in front of it and let three things back in:
