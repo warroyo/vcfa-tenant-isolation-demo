@@ -18,9 +18,11 @@ NAMESPACE=$(out namespace_name)
 CLUSTER=$(out awx_cluster_name)
 
 step "Waiting for VKS cluster $CLUSTER in $NAMESPACE"
-write_kubeconfig "$(out namespace_host)" "$SECRETS/awx-namespace.kubeconfig"
+HOST=$(out namespace_host)
 export KUBECONFIG="$SECRETS/awx-namespace.kubeconfig"
-until [[ $(kubectl -n "$NAMESPACE" get cluster "$CLUSTER" -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null) == True ]]; do
+# The access token is short-lived, so write a fresh kubeconfig each round.
+until write_kubeconfig "$HOST" "$KUBECONFIG" &&
+  [[ $(kubectl -n "$NAMESPACE" get cluster "$CLUSTER" -o jsonpath='{.status.conditions[?(@.type=="Available")].status}') == True ]]; do
   sleep 20
 done
 (umask 077; kubectl -n "$NAMESPACE" get secret "$CLUSTER-kubeconfig" -o jsonpath='{.data.value}' | base64 -d >"$SECRETS/awx-cluster.kubeconfig")

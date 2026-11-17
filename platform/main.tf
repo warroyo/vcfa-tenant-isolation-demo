@@ -144,5 +144,9 @@ resource "kubectl_manifest" "awx_cluster" {
     }
   })
 
+  # Wait for deletes to finish, so a replace does not re-apply the old
+  # cluster while it is still terminating.
+  wait = true
+
   depends_on = [kubectl_manifest.awx_subnet]
 }
