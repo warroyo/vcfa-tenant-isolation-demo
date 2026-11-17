@@ -51,6 +51,9 @@ resource "kubectl_manifest" "project" {
     metadata   = { name = var.name }
     spec       = { description = "Tenant isolation demo: ${var.name}." }
   })
+
+  # Projects reject the last-applied annotation a client-side apply adds.
+  server_side_apply = true
 }
 
 resource "kubectl_manifest" "vpc" {

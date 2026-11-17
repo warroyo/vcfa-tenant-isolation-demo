@@ -19,6 +19,9 @@ resource "kubectl_manifest" "project" {
     metadata   = { name = local.project_name }
     spec       = { description = "Shared services for the tenant isolation demo: AWX." }
   })
+
+  # Projects reject the last-applied annotation a client-side apply adds.
+  server_side_apply = true
 }
 
 resource "kubectl_manifest" "vpc" {
@@ -87,12 +90,13 @@ locals {
   namespace_name = vcfa_supervisor_namespace.awx.name
 }
 
+# VKS node networks must be a SubnetSet, not a Subnet.
 resource "kubectl_manifest" "awx_subnet" {
   provider = kubectl.awx
 
   yaml_body = yamlencode({
     apiVersion = "crd.nsx.vmware.com/v1alpha1"
-    kind       = "Subnet"
+    kind       = "SubnetSet"
     metadata   = { name = "awx-tgw", namespace = local.namespace_name }
     spec       = { accessMode = "PrivateTGW", ipv4SubnetSize = 16 }
   })
@@ -135,7 +139,7 @@ resource "kubectl_manifest" "awx_cluster" {
                 primary = {
                   network = {
                     apiVersion = "crd.nsx.vmware.com/v1alpha1"
-                    kind       = "Subnet"
+                    kind       = "SubnetSet"
                     name       = "awx-tgw"
                   }
                 }
