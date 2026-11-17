@@ -2,13 +2,19 @@
 
 Run `scripts/demo.sh` and then `scripts/reset.sh` once beforehand, so you know the demo works on the day.
 
-1. Start the demo:
+1. Open the addresses you will show: VCF Automation, AWX, and after step 3 each tenant's page.
+
+   ```bash
+   scripts/endpoints.sh -p
+   ```
+
+2. Start the demo:
 
    ```bash
    scripts/demo.sh
    ```
 
-2. Present each step:
+3. Present each step:
 
    | Step | Show | Why |
    |---|---|---|
@@ -17,7 +23,7 @@ Run `scripts/demo.sh` and then `scripts/reset.sh` once beforehand, so you know t
    | 3 | Both VIPs in a browser: a blue page and an orange page | Each tenant's workload is reachable on its own load balancer. |
    | 4 | `BLOCKED tenant-a -> 172.31.x.x`, in both directions. The AWX job output shows the failed connection attempts | The tenants share a transit gateway, but the VPC firewall keeps them apart. AWX is allowed in as an object, not an IP. |
 
-3. After the demo, remove both tenants:
+4. After the demo, remove both tenants:
 
    ```bash
    scripts/reset.sh
@@ -25,4 +31,4 @@ Run `scripts/demo.sh` and then `scripts/reset.sh` once beforehand, so you know t
 
    This leaves `platform/` and AWX in place for the next run. NSX keeps deleted VPC names for up to 5 minutes, so wait that long before running the demo again.
 
-4. To remove everything, run `terraform -chdir=platform destroy`.
+5. To remove everything, run `terraform -chdir=platform destroy`.

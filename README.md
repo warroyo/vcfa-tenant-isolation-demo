@@ -56,6 +56,8 @@ Prerequisites:
    scripts/reset.sh
    ```
 
+`scripts/endpoints.sh` prints every address: VCF Automation, AWX (`-p` adds the admin password), and each tenant's page and VM.
+
 To present it, see [docs/how-to/run-the-demo.md](docs/how-to/run-the-demo.md). If a step fails, see [docs/how-to/troubleshoot.md](docs/how-to/troubleshoot.md).
 
 ## Repo structure
@@ -64,7 +66,7 @@ To present it, see [docs/how-to/run-the-demo.md](docs/how-to/run-the-demo.md). I
 platform/     Terraform, built once: shared-services project, VPC, namespace, AWX cluster, image library
 tenants/      Terraform, the demo: two tenants and the firewall between them (isolation.tf)
 playbooks/    The AWX playbooks: tenant-page.yml installs the page, isolation-check.yml tests isolation
-scripts/      awx.sh, demo.sh, reset.sh, check-isolation.sh; env.sh and load-env.sh shared by all of them
+scripts/      awx.sh, demo.sh, reset.sh, endpoints.sh, check-isolation.sh; env.sh and load-env.sh shared by all of them
 .env.example  Every setting, as TF_VAR_*: copy to .env
 docs/         Everything beyond this page
 ```

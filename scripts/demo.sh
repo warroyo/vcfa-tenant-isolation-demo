@@ -42,3 +42,5 @@ pause
 
 step "4. Isolation: each tenant's VM tries to reach the other's"
 "$REPO_ROOT/scripts/check-isolation.sh"
+
+echo; echo "Every address, any time: scripts/endpoints.sh"
