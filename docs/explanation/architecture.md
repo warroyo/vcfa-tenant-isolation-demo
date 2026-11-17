@@ -1,54 +1,42 @@
 # Architecture
 
 ```mermaid
-flowchart LR
-  tf["terraform apply<br/>(tenants/)"]
-  user["Browser"]
-  internet(("Internet"))
+flowchart TB
+  tf["terraform apply"]
 
-  subgraph org["VCF Automation org"]
-    subgraph shared["shared-services VPC"]
-      subgraph awxns["Supervisor Namespace"]
-        awx["VKS cluster: AWX"]
-      end
-    end
-
-    tgw{{"Transit gateway<br/>(PrivateTGW subnets, no SNAT)"}}
-
-    subgraph a["tenant-a VPC"]
-      subgraph ans["Supervisor Namespace"]
-        abind["AWXConnection +<br/>AnsibleBinding"]
-        avm["tenant-a-web VM"]
-        avip["Avi VIP :80"]
-      end
-    end
-
-    subgraph b["tenant-b VPC"]
-      subgraph bns["Supervisor Namespace"]
-        bbind["AWXConnection +<br/>AnsibleBinding"]
-        bvm["tenant-b-web VM"]
-        bvip["Avi VIP :80"]
-      end
-    end
-
-    fw["Org firewall policies<br/>tenant-mgmt, tenant-egress, tenant-vip-http"]
+  subgraph shared["shared-services VPC"]
+    awx["AWX on VKS"]
   end
 
-  tf -->|projects, VPCs, namespaces,<br/>VMs, firewall| org
+  tgw{{"Transit gateway"}}
+
+  subgraph a["tenant-a VPC"]
+    abind["AnsibleBinding"]
+    avm["tenant-a-web"]
+    avip["Avi VIP :80"]
+  end
+
+  subgraph b["tenant-b VPC"]
+    bbind["AnsibleBinding"]
+    bvm["tenant-b-web"]
+    bvip["Avi VIP :80"]
+  end
+
+  user["Browser"]
+
+  tf --> a
+  tf --> b
   abind -->|launch job| awx
   bbind -->|launch job| awx
   awx -->|ssh| tgw
-  tgw -->|ssh: allowed by tenant-mgmt| avm
-  tgw -->|ssh: allowed by tenant-mgmt| bvm
-  user -->|HTTP: allowed by tenant-vip-http| avip --> avm
-  user -->|HTTP: allowed by tenant-vip-http| bvip --> bvm
-  avm -->|allowed by tenant-egress| internet
+  tgw -->|tenant-mgmt| avm
+  tgw -->|tenant-mgmt| bvm
   avm --x|blocked| bvm
-  fw -.-|applied to| a
-  fw -.-|applied to| b
+  user -->|tenant-vip-http| avip --> avm
+  user -->|tenant-vip-http| bvip --> bvm
 ```
 
-The Ansible Supervisor Service watches each tenant's `AnsibleBinding` and launches the job in AWX through that tenant's `AWXConnection`. AWX then reaches the VM over SSH. Each tenant VPC's security profile denies everything else inbound, including traffic from the other tenant.
+The Ansible Supervisor Service watches each tenant's `AnsibleBinding` and launches the job in AWX through that tenant's `AWXConnection`. AWX then reaches the VM over SSH. Edge labels name the org firewall policy that allows the traffic. Each tenant VPC's security profile denies everything else inbound, including traffic from the other tenant.
 
 ## Isolation
 
