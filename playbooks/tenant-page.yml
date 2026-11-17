@@ -1,0 +1,30 @@
+# Installs nginx on a tenant VM and serves a page that says whose VM it is.
+# AWX runs this from the AnsibleBinding in each tenant namespace, which passes
+# the tenant_* variables.
+- name: Tenant page
+  hosts: all
+  become: true
+  vars:
+    tenant_name: unknown tenant
+    tenant_color: "#555555"
+    tenant_project: unknown
+    tenant_vpc: unknown
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Write the page
+      ansible.builtin.template:
+        src: templates/index.html.j2
+        dest: /var/www/html/index.html
+        mode: "0644"
+
+    - name: Start nginx
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true

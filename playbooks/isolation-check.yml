@@ -1,0 +1,23 @@
+# Runs on one tenant's VM and tries to reach another tenant's VM. Passes when
+# the connection is blocked; fails, so the AWX job shows red, when it is not.
+# scripts/check-isolation.sh launches it through an AnsibleRun with target_ip.
+- name: Isolation check
+  hosts: all
+  gather_facts: false
+  vars:
+    target_ports: [22, 80]
+  tasks:
+    - name: Try to reach {{ target_ip }}
+      ansible.builtin.wait_for:
+        host: "{{ target_ip }}"
+        port: "{{ item }}"
+        timeout: 5
+      loop: "{{ target_ports }}"
+      register: probe
+      ignore_errors: true
+
+    - name: Report
+      ansible.builtin.assert:
+        that: probe.results | selectattr('failed', 'equalto', false) | list | length == 0
+        success_msg: "BLOCKED: {{ inventory_hostname }} cannot reach {{ target_ip }} on {{ target_ports | join(', ') }}"
+        fail_msg: "LEAK: {{ inventory_hostname }} reached {{ target_ip }}"

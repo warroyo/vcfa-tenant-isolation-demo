@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ tenant_name }}</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: {{ tenant_color }}; color: #fff;
+           min-height: 100vh; display: grid; place-items: center; }
+    main { text-align: center; }
+    h1 { font-size: 4rem; margin: 0 0 1rem; }
+    dl { display: grid; grid-template-columns: auto auto; gap: .4rem 1.2rem; font-size: 1.3rem; text-align: left; }
+    dt { opacity: .75; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>{{ tenant_name }}</h1>
+    <dl>
+      <dt>Project</dt><dd>{{ tenant_project }}</dd>
+      <dt>VPC</dt><dd>{{ tenant_vpc }}</dd>
+      <dt>VM</dt><dd>{{ ansible_hostname }}</dd>
+      <dt>Private IP</dt><dd>{{ ansible_default_ipv4.address }}</dd>
+      <dt>Configured by</dt><dd>AWX, through the Ansible Supervisor Service</dd>
+    </dl>
+  </main>
+</body>
+</html>

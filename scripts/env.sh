@@ -1,0 +1,58 @@
+# Sourced by the other scripts. Needs VCFA_API_TOKEN: an Organization
+# Administrator's API token for the org in tenants/tenants.auto.tfvars.
+#
+# shellcheck shell=bash
+
+set -euo pipefail
+
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+SECRETS="$REPO_ROOT/.secrets"
+mkdir -p "$SECRETS"
+chmod 700 "$SECRETS"
+
+: "${VCFA_API_TOKEN:?Set VCFA_API_TOKEN to an Organization Administrator API token}"
+export TF_VAR_vcfa_api_token="$VCFA_API_TOKEN"
+
+tfvar() { sed -n "s/^$1 *= *\"\(.*\)\"/\1/p" "$REPO_ROOT/tenants/tenants.auto.tfvars"; }
+VCFA_URL=$(tfvar vcfa_url)
+VCFA_ORG=$(tfvar vcfa_org)
+
+# AWX address and token, written by scripts/awx.sh.
+if [[ -f "$SECRETS/awx.env" ]]; then
+  # shellcheck disable=SC1091
+  source "$SECRETS/awx.env"
+  export TF_VAR_awx_url="$AWX_URL" TF_VAR_awx_token="$AWX_TOKEN"
+fi
+
+# A short-lived VCF Automation access token from the API token.
+access_token() {
+  curl -sfk -X POST "$VCFA_URL/oauth/tenant/$VCFA_ORG/token" \
+    -H 'Accept: application/json' \
+    --data-urlencode grant_type=refresh_token \
+    --data-urlencode "refresh_token=$VCFA_API_TOKEN" | jq -r .access_token
+}
+
+# write_kubeconfig <api address> <file>: a kubeconfig for one namespace's API.
+write_kubeconfig() {
+  local host=$1 file=$2 token
+  token=$(access_token)
+  (umask 077; cat >"$file" <<EOF
+apiVersion: v1
+kind: Config
+clusters: [{name: vcfa, cluster: {server: "$host", insecure-skip-tls-verify: true}}]
+users: [{name: vcfa, user: {token: "$token"}}]
+contexts: [{name: vcfa, context: {cluster: vcfa, user: vcfa}}]
+current-context: vcfa
+EOF
+  )
+}
+
+# tenant_kubeconfig <tenant key>: path to a fresh kubeconfig for its namespace.
+tenant_kubeconfig() {
+  local file="$SECRETS/$1.kubeconfig" host
+  host=$(terraform -chdir="$REPO_ROOT/tenants" output -json tenants | jq -r --arg t "$1" '.[$t].host')
+  write_kubeconfig "$host" "$file"
+  echo "$file"
+}
+
+step() { printf '\n\033[1m== %s\033[0m\n' "$*"; }

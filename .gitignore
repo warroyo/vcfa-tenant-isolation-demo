@@ -1,0 +1,17 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.auto.tfvars
+crash.log
+
+# Downloaded VM image
+platform/.images/
+
+# Generated keys, kubeconfigs and the AWX token
+.secrets/
+
+# Saved plans can hold sensitive values
+tfplan
+*.tfplan
