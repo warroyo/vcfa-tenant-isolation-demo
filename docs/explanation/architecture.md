@@ -12,15 +12,6 @@ Traffic from one tenant to the other matches none of them. The policies need vDe
 
 AWX reaches the tenant VMs because its cluster nodes sit on a PrivateTGW subnet. Traffic from them crosses the transit gateway without SNAT, so the tenant firewall can allow "the shared-services VPC" as an object instead of an IP.
 
-## The AWX cluster
-
-The cluster has one control plane node and one worker, the smallest supported shape.
-
-- **Why not one node.** Several VKS system pods (vks-agent, gatekeeper, policy-sync and others) do not tolerate the control-plane taint, so a single node only works with the taint removed. That is unsupported. The `builtin-generic-v3.8.0` ClusterClass documents a `node.taints` variable, but setting it to `[]` has no effect, and removing the taint by hand marks the CAPI Machine `Ready=False`.
-- **Sizes.** The control plane uses `best-effort-small` (2 vCPU, 4Gi). The worker uses `best-effort-awx-worker` (3 vCPU, 6Gi), a custom class made by hand in vCenter for this lab and set in `platform/lab.auto.tfvars`. With system pods and AWX, the worker needs about 2.2 vCPU and 3.5Gi of requests.
-- **Disk.** The worker has a 20Gi containerd disk. Without it, pulling the AWX execution environment image fills the 16Gi root disk, and the kubelet evicts AWX.
-- **Storage quota.** Each node's root disk counts as a 20Gi volume against the namespace's storage limit. With the containerd disk and the 2Gi Postgres volume that is 82Gi, plus 40Gi while a worker rolls out, so the limit is 130Gi. VM classes are best-effort, so nothing is reserved.
-
 ## Gotchas
 
 - **Image names must be unique in the org.** VM Operator refuses an image name that matches more than one image visible to a namespace, and any library in the org can add one. The image is named `tenant-demo-ubuntu-24.04` for that reason.

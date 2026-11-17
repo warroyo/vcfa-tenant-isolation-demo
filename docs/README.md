@@ -7,4 +7,4 @@
 
 ## Explanation
 
-- [Architecture](explanation/architecture.md): the isolation model, the AWX cluster's shape and size, and gotchas
+- [Architecture](explanation/architecture.md): the isolation model and gotchas
