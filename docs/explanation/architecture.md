@@ -28,7 +28,9 @@ flowchart TB
   tgw -->|ssh, tenant-mgmt| bvm
   browser -->|HTTP, tenant-vip-http| avip
   browser -->|HTTP, tenant-vip-http| bvip
-  avm x--x|blocked| bvm
+  block["tenant-a to tenant-b: blocked<br/>by the VPC security profile"]
+  avm --x block
+  bvm --x block
 ```
 
 ## Configuring a VM
