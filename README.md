@@ -1,5 +1,7 @@
 # VCF Automation tenant isolation demo
 
+## Overview
+
 Two tenants, built by one `terraform apply` in VCF Automation. Each gets its own project, VPC, Supervisor Namespace and VM. AWX, called by the [Ansible Supervisor Service](https://github.com/warroyo/ansible-supervisor-service), installs a page on each VM. Then each tenant's VM tries to reach the other's, and the NSX firewall blocks it.
 
 ```
@@ -14,62 +16,56 @@ Two tenants, built by one `terraform apply` in VCF Automation. Each gets its own
 ## How it works
 
 - **`platform/`** is built once, before any demo. It creates a `shared-services` project, VPC and namespace, a small VKS cluster (one control plane node, one worker) on a PrivateTGW subnet, and a content library holding the Ubuntu cloud image. `scripts/awx.sh` then installs AWX on that cluster and sets it up.
-- **`tenants/`** is the demo. For each tenant it creates:
-  - a project, a VPC, and a namespace
-  - a PrivateTGW subnet
-  - an extra-small VM and an Avi LoadBalancer on port 80
-  - an `AWXConnection` and an `AnsibleBinding`
+- **`tenants/`** is the demo. For each tenant it creates a project, VPC and namespace, a PrivateTGW subnet, an extra-small VM behind an Avi LoadBalancer on port 80, and an `AWXConnection` and `AnsibleBinding`. `isolation.tf` adds the firewall.
+- **Isolation.** Each tenant VPC denies inbound and VPC-to-VPC traffic. Org-level firewall policies let only AWX, internet egress and HTTP to the VIPs back in, so traffic from one tenant to the other is dropped.
 
-  `isolation.tf` adds the firewall.
-- **Isolation.** Each tenant VPC gets the built-in *VPC External Connectivity* security profile, which allows outbound traffic and denies inbound and VPC-to-VPC traffic. Three org-level Infrastructure firewall policies sit in front of it and let three things back in:
-  - AWX, matched as the shared-services VPC object rather than an IP
-  - internet egress
-  - HTTP to the load balancer VIPs
+Details: [docs/explanation/architecture.md](docs/explanation/architecture.md).
 
-  Traffic from one tenant to the other matches none of them. The policies need vDefend (NSX distributed firewall).
+## Quick start
 
-## Before the demo
+Prerequisites:
 
-Tools: `terraform`, `kubectl`, `helm`, `jq`, `curl`.
+- `terraform`, `kubectl`, `helm`, `jq` and `curl`
+- An Organization Administrator API token for the org named in `tenants/tenants.auto.tfvars`
+- vDefend (NSX distributed firewall) in the target environment
 
-Access: an Organization Administrator API token for the org named in `tenants/tenants.auto.tfvars`.
+1. Load the token. It is never written to a file.
 
-```bash
-export VCFA_API_TOKEN=...            # never in a file
-source scripts/env.sh                # exports TF_VAR_vcfa_api_token
+   ```bash
+   export VCFA_API_TOKEN=...
+   source scripts/env.sh                # exports TF_VAR_vcfa_api_token
+   ```
 
-terraform -chdir=platform init
-terraform -chdir=platform apply      # about 15 minutes, mostly the VKS cluster and the image upload
-scripts/awx.sh                       # about 10 minutes; writes .secrets/awx.env
+2. Build the platform. This takes about 15 minutes, mostly the VKS cluster and the image upload.
+
+   ```bash
+   terraform -chdir=platform init
+   terraform -chdir=platform apply
+   ```
+
+3. Install and set up AWX. This takes about 10 minutes and writes `.secrets/awx.env`.
+
+   ```bash
+   scripts/awx.sh
+   ```
+
+4. Run the demo, then reset it.
+
+   ```bash
+   scripts/demo.sh
+   scripts/reset.sh
+   ```
+
+To present it, see [docs/how-to/run-the-demo.md](docs/how-to/run-the-demo.md). If a step fails, see [docs/how-to/troubleshoot.md](docs/how-to/troubleshoot.md).
+
+## Repo structure
+
+```
+platform/     Terraform, built once: shared-services project, VPC, namespace, AWX cluster, image library
+tenants/      Terraform, the demo: two tenants and the firewall between them (isolation.tf)
+playbooks/    The AWX playbooks: tenant-page.yml installs the page, isolation-check.yml tests isolation
+scripts/      awx.sh, demo.sh, reset.sh, check-isolation.sh, and env.sh shared by all of them
+docs/         Everything beyond this page
 ```
 
-Run `scripts/demo.sh` and then `scripts/reset.sh` once beforehand, so you know the demo works on the day.
-
-## Run the demo
-
-```bash
-scripts/demo.sh
-```
-
-| Step | Show | Why |
-|---|---|---|
-| 1 | `terraform apply` creating `tenant-a` and `tenant-b`. Then, in VCF Automation, the two new projects and their namespaces | The person asking for the environments never touches Kubernetes. They get self-service infrastructure from a single apply. |
-| 2 | The VMs getting IPs, then `ansible: Succeeded`. In AWX, the two jobs and the hosts named `tenant-a-…` and `tenant-b-…` | Configuration runs automatically, with each tenant's own AWX connection. The VMs never had nginx in their image. |
-| 3 | Both VIPs in a browser: a blue page and an orange page | Each tenant's workload is reachable on its own load balancer. |
-| 4 | `BLOCKED tenant-a -> 172.31.x.x`, in both directions. The AWX job output shows the failed connection attempts | The tenants share a transit gateway, but the VPC firewall keeps them apart. AWX is allowed in as an object, not an IP. |
-
-## After the demo
-
-```bash
-scripts/reset.sh
-```
-
-This removes both tenants and leaves `platform/` and AWX in place for the next run. NSX keeps deleted VPC names for up to 5 minutes, so wait that long before running the demo again. To remove everything, run `terraform -chdir=platform destroy`.
-
-## Troubleshooting
-
-- **`ansible: Failed`.** Open the job in AWX. If it fails at SSH, the VM was probably still running cloud-init. Bump the `ansible.field.vmware.com/reconcile-requested-at` annotation on the `AnsibleBinding`, and it runs again.
-- **A VIP times out but the job succeeded.** Check that `tenant-vip-http` and `tenant-mgmt` are `Realized`: `kubectl get firewallpolicies.vpc.nsx.vmware.com` with the org kubeconfig. Also check that `vip_range` matches the connectivity profile's external IP block.
-- **`awx.sh` waits forever for AWX, but the pods are Running.** The `awx-service` LoadBalancer shows `<pending>` in the AWX cluster, even though the Supervisor has given it an address. This happens after a node rollout. Restart the cluster's cloud provider: `kubectl -n vmware-system-cloud-provider rollout restart deploy/guest-cluster-cloud-provider`.
-- **The demo fails with `is marked for deletion`.** It ran within 5 minutes of a reset. Wait, then run it again.
-- **`awx.sh` stops at the project sync.** AWX could not clone `REPO_URL`. The cluster nodes need internet egress through the shared-services VPC.
+Docs index: [docs/README.md](docs/README.md).
