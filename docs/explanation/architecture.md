@@ -1,42 +1,55 @@
 # Architecture
 
+## Network
+
+Every arrow points the way traffic flows. Each label names the protocol and the org firewall policy that allows it.
+
 ```mermaid
 flowchart TB
-  tf["terraform apply"]
-
   subgraph shared["shared-services VPC"]
     awx["AWX on VKS"]
   end
+  browser["Browser"]
 
   tgw{{"Transit gateway"}}
 
   subgraph a["tenant-a VPC"]
-    abind["AnsibleBinding"]
-    avm["tenant-a-web"]
-    avip["Avi VIP :80"]
+    direction TB
+    avip["Avi VIP :80"] --> avm["tenant-a-web VM"]
   end
 
   subgraph b["tenant-b VPC"]
-    bbind["AnsibleBinding"]
-    bvm["tenant-b-web"]
-    bvip["Avi VIP :80"]
+    direction TB
+    bvip["Avi VIP :80"] --> bvm["tenant-b-web VM"]
   end
 
-  user["Browser"]
-
-  tf --> a
-  tf --> b
-  abind -->|launch job| awx
-  bbind -->|launch job| awx
-  awx -->|ssh| tgw
-  tgw -->|tenant-mgmt| avm
-  tgw -->|tenant-mgmt| bvm
-  avm --x|blocked| bvm
-  user -->|tenant-vip-http| avip --> avm
-  user -->|tenant-vip-http| bvip --> bvm
+  awx --> tgw
+  tgw -->|ssh, tenant-mgmt| avm
+  tgw -->|ssh, tenant-mgmt| bvm
+  browser -->|HTTP, tenant-vip-http| avip
+  browser -->|HTTP, tenant-vip-http| bvip
+  avm x--x|blocked| bvm
 ```
 
-The Ansible Supervisor Service watches each tenant's `AnsibleBinding` and launches the job in AWX through that tenant's `AWXConnection`. AWX then reaches the VM over SSH. Edge labels name the org firewall policy that allows the traffic. Each tenant VPC's security profile denies everything else inbound, including traffic from the other tenant.
+## Configuring a VM
+
+`terraform apply` creates the tenant. The Ansible Supervisor Service then runs the AWX job that installs the page.
+
+```mermaid
+sequenceDiagram
+  participant TF as terraform apply
+  participant NS as Tenant namespace
+  participant SVC as Ansible Supervisor Service
+  participant AWX
+  participant VM as Tenant VM
+
+  TF->>NS: VM, AWXConnection, AnsibleBinding
+  SVC->>NS: Watch AnsibleBinding
+  SVC->>AWX: Add VM to inventory, launch "Install tenant page"
+  AWX->>VM: SSH through the transit gateway
+  AWX-->>SVC: Job status: successful
+  SVC->>NS: AnsibleBindingVM phase Succeeded
+```
 
 ## Isolation
 
