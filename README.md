@@ -13,7 +13,7 @@ Two tenants, built by one `terraform apply` in VCF Automation. Each gets its own
 
 ## How it works
 
-- **`platform/`** is built once, before any demo. It creates a `shared-services` project, VPC and namespace, a single-node VKS cluster (control plane untainted, no workers) on a PrivateTGW subnet, and a content library holding the Ubuntu cloud image. `scripts/awx.sh` then installs AWX on that cluster and sets it up.
+- **`platform/`** is built once, before any demo. It creates a `shared-services` project, VPC and namespace, a single-node VKS cluster (no workers; `awx.sh` removes the control-plane taint) on a PrivateTGW subnet, and a content library holding the Ubuntu cloud image. `scripts/awx.sh` then installs AWX on that cluster and sets it up.
 - **`tenants/`** is the demo. For each tenant it creates:
   - a project, a VPC, and a namespace
   - a PrivateTGW subnet

@@ -28,6 +28,10 @@ done
 (umask 077; kubectl -n "$NAMESPACE" get secret "$CLUSTER-kubeconfig" -o jsonpath='{.data.value}' | base64 -d >"$SECRETS/awx-cluster.kubeconfig")
 export KUBECONFIG="$SECRETS/awx-cluster.kubeconfig"
 
+# Single-node cluster: let pods run on the control plane node. Repeat this
+# after the node is replaced.
+kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule- 2>/dev/null || true
+
 step "Installing the AWX operator"
 helm repo add awx-operator https://ansible-community.github.io/awx-operator-helm/ >/dev/null 2>&1 || true
 helm repo update awx-operator >/dev/null

@@ -118,13 +118,13 @@ resource "kubectl_manifest" "awx_cluster" {
       topology = {
         classRef = { name = var.awx_cluster.class, namespace = "vmware-system-vks-public" }
         version  = var.awx_cluster.version
-        # One node and no workers. With the control-plane taint removed,
-        # AWX schedules on the control plane node.
+        # One node and no workers. scripts/awx.sh removes the control-plane
+        # taint so AWX schedules there. (The class's `node.taints: []` does not
+        # work: the empty list is dropped and kubeadm adds the default taint.)
         controlPlane = { replicas = 1 }
         variables = [
           { name = "vmClass", value = var.awx_cluster.vm_class },
           { name = "storageClass", value = var.storage_class },
-          { name = "node", value = { taints = [] } },
           {
             name = "networks"
             value = {
