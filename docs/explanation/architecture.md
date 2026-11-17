@@ -67,7 +67,7 @@ flowchart TB
 | `tenant-mgmt-shared-services` | The shared-services VPC, by name | `tenant-mgmt` source |
 | `tenant-mgmt-avi` | `100.64.0.0/10`, the Avi Service Engine range | `tenant-mgmt` source |
 | `tenant-private-ranges` | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10` | `tenant-egress` destination, excluded |
-| `tenant-lb-vips` | `vip_range` from `tenants/tenants.auto.tfvars` | `tenant-vip-http` destination |
+| `tenant-lb-vips` | `TF_VAR_vip_range` from `.env` | `tenant-vip-http` destination |
 
 A group with VPC members cannot also hold IPs, so the shared-services VPC and the Avi range are two groups.
 

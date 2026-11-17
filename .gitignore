@@ -9,6 +9,9 @@ crash.log
 # Downloaded VM image
 platform/.images/
 
+# Lab settings and the API token (copy .env.example)
+.env
+
 # Generated keys, kubeconfigs and the AWX token
 .secrets/
 

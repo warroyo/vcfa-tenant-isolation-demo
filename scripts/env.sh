@@ -1,5 +1,5 @@
-# Sourced by the other scripts. Needs VCFA_API_TOKEN: an Organization
-# Administrator's API token for the org in tenants/tenants.auto.tfvars.
+# Sourced by the other scripts. Loads .env (see .env.example), which must set
+# TF_VAR_vcfa_api_token, TF_VAR_vcfa_url and TF_VAR_vcfa_org.
 #
 # shellcheck shell=bash
 
@@ -10,12 +10,13 @@ SECRETS="$REPO_ROOT/.secrets"
 mkdir -p "$SECRETS"
 chmod 700 "$SECRETS"
 
-: "${VCFA_API_TOKEN:?Set VCFA_API_TOKEN to an Organization Administrator API token}"
-export TF_VAR_vcfa_api_token="$VCFA_API_TOKEN"
-
-tfvar() { sed -n "s/^$1 *= *\"\(.*\)\"/\1/p" "$REPO_ROOT/tenants/tenants.auto.tfvars"; }
-VCFA_URL=$(tfvar vcfa_url)
-VCFA_ORG=$(tfvar vcfa_org)
+# shellcheck disable=SC1091
+source "$REPO_ROOT/scripts/load-env.sh"
+for v in TF_VAR_vcfa_api_token TF_VAR_vcfa_url TF_VAR_vcfa_org; do
+  [[ -n ${!v:-} ]] || { echo "Set $v in .env (copy .env.example)" >&2; exit 1; }
+done
+VCFA_URL=$TF_VAR_vcfa_url
+VCFA_ORG=$TF_VAR_vcfa_org
 
 # AWX address and token, written by scripts/awx.sh.
 if [[ -f "$SECRETS/awx.env" ]]; then
@@ -29,7 +30,7 @@ access_token() {
   curl -sfk -X POST "$VCFA_URL/oauth/tenant/$VCFA_ORG/token" \
     -H 'Accept: application/json' \
     --data-urlencode grant_type=refresh_token \
-    --data-urlencode "refresh_token=$VCFA_API_TOKEN" | jq -r .access_token
+    --data-urlencode "refresh_token=$TF_VAR_vcfa_api_token" | jq -r .access_token
 }
 
 # write_kubeconfig <api address> <file> [namespace]: a kubeconfig for one

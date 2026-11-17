@@ -2,7 +2,7 @@
 # The demo: Terraform builds both tenants, AWX configures their VMs, then the
 # isolation check runs. DEMO_PAUSE=0 runs it without stopping between steps.
 #
-# Usage: VCFA_API_TOKEN=... scripts/demo.sh
+# Usage: scripts/demo.sh
 
 source "$(dirname "$0")/env.sh"
 [[ -n ${AWX_URL:-} ]] || { echo "No .secrets/awx.env: run scripts/awx.sh first" >&2; exit 1; }

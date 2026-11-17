@@ -26,14 +26,14 @@ Details: [docs/explanation/architecture.md](docs/explanation/architecture.md).
 Prerequisites:
 
 - `terraform`, `kubectl`, `helm`, `jq` and `curl`
-- An Organization Administrator API token for the org named in `tenants/tenants.auto.tfvars`
+- An Organization Administrator API token for the VCF Automation org
 - vDefend (NSX distributed firewall) in the target environment
 
-1. Load the token. It is never written to a file.
+1. Copy `.env.example` to `.env`, fill it in, and load it. `.env` is gitignored, and the scripts load it themselves.
 
    ```bash
-   export VCFA_API_TOKEN=...
-   source scripts/env.sh                # exports TF_VAR_vcfa_api_token
+   cp .env.example .env
+   source scripts/load-env.sh
    ```
 
 2. Build the platform. This takes about 15 minutes, mostly the VKS cluster and the image upload.
@@ -64,7 +64,8 @@ To present it, see [docs/how-to/run-the-demo.md](docs/how-to/run-the-demo.md). I
 platform/     Terraform, built once: shared-services project, VPC, namespace, AWX cluster, image library
 tenants/      Terraform, the demo: two tenants and the firewall between them (isolation.tf)
 playbooks/    The AWX playbooks: tenant-page.yml installs the page, isolation-check.yml tests isolation
-scripts/      awx.sh, demo.sh, reset.sh, check-isolation.sh, and env.sh shared by all of them
+scripts/      awx.sh, demo.sh, reset.sh, check-isolation.sh; env.sh and load-env.sh shared by all of them
+.env.example  Every setting, as TF_VAR_*: copy to .env
 docs/         Everything beyond this page
 ```
 

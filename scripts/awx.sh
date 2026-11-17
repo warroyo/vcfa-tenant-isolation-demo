@@ -4,7 +4,7 @@
 # two job templates. Writes AWX_URL and AWX_TOKEN to .secrets/awx.env.
 # Safe to run again: it creates only what is missing.
 #
-# Usage: VCFA_API_TOKEN=... scripts/awx.sh
+# Usage: scripts/awx.sh
 #   REPO_URL   git URL AWX pulls the playbooks from (default: this repo on GitHub)
 
 source "$(dirname "$0")/env.sh"
@@ -40,7 +40,7 @@ helm upgrade --install awx-operator awx-operator/awx-operator -n awx \
 
 # Small requests: one demo, two VMs. VKS clusters have no default
 # StorageClass, so Postgres names one.
-STORAGE_CLASS=$(sed -n 's/^storage_class *= *"\(.*\)"/\1/p' "$REPO_ROOT/platform/lab.auto.tfvars")
+STORAGE_CLASS=$TF_VAR_storage_class
 kubectl apply -f - <<EOF
 apiVersion: awx.ansible.com/v1beta1
 kind: AWX

@@ -3,7 +3,7 @@
 # through an AnsibleRun and the "Check isolation" job template. Prints BLOCKED
 # when the firewall holds.
 #
-# Usage: VCFA_API_TOKEN=... scripts/check-isolation.sh
+# Usage: scripts/check-isolation.sh
 
 source "$(dirname "$0")/env.sh"
 read -r A B < <(terraform -chdir="$REPO_ROOT/tenants" output -json tenants | jq -r 'keys | join(" ")')

@@ -10,7 +10,7 @@ variable "vcfa_org" {
 
 variable "vcfa_api_token" {
   type        = string
-  description = "An Organization Administrator's API token. Set it with TF_VAR_vcfa_api_token, never in a file."
+  description = "An Organization Administrator's API token. Set it with TF_VAR_vcfa_api_token in .env."
   sensitive   = true
 }
 
