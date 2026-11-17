@@ -7,4 +7,4 @@
 
 ## Explanation
 
-- [Architecture](explanation/architecture.md): the isolation model and gotchas
+- [Architecture](explanation/architecture.md): the network, the firewall design (groups, policies, evaluation order), and gotchas

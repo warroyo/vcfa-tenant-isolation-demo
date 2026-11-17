@@ -33,37 +33,59 @@ flowchart TB
   bvm --x block
 ```
 
-## Configuring a VM
+## Firewall design
 
-`terraform apply` creates the tenant. The Ansible Supervisor Service then runs the AWX job that installs the page.
+All of it is org scope, in `tenants/isolation.tf`, so an Organization Administrator can create it. It needs vDefend (NSX distributed firewall).
+
+Each tenant VPC gets the built-in *VPC External Connectivity* security profile: outbound allowed, inbound and VPC-to-VPC denied. On its own that profile also breaks three things the demo needs, so three Infrastructure firewall policies, evaluated before it, put them back. Tenant to tenant matches none of them, so the profile drops it.
 
 ```mermaid
-sequenceDiagram
-  participant TF as terraform apply
-  participant NS as Tenant namespace
-  participant SVC as Ansible Supervisor Service
-  participant AWX
-  participant VM as Tenant VM
+flowchart TB
+  pkt["Traffic to or from a tenant VPC"]
+  p10{"tenant-mgmt, priority 10<br/>From the shared-services VPC<br/>or the Avi Service Engines?"}
+  p20{"tenant-egress, priority 20<br/>To anything outside<br/>the private ranges?"}
+  p30{"tenant-vip-http, priority 30<br/>HTTP to a load balancer VIP?"}
+  profile["VPC External Connectivity profile<br/>Outbound allowed<br/>Inbound and VPC-to-VPC denied"]
+  a10(["Allow"])
+  a20(["Allow"])
+  a30(["Allow"])
 
-  TF->>NS: VM, AWXConnection, AnsibleBinding
-  SVC->>NS: Watch AnsibleBinding
-  SVC->>AWX: Add VM to inventory, launch "Install tenant page"
-  AWX->>VM: SSH through the transit gateway
-  AWX-->>SVC: Job status: successful
-  SVC->>NS: AnsibleBindingVM phase Succeeded
+  pkt --> p10
+  p10 -->|yes| a10
+  p10 -->|no| p20
+  p20 -->|yes| a20
+  p20 -->|no| p30
+  p30 -->|yes| a30
+  p30 -->|no| profile
 ```
 
-## Isolation
+### Network security groups
 
-Each tenant VPC gets the built-in *VPC External Connectivity* security profile, which allows outbound traffic and denies inbound and VPC-to-VPC traffic. Three org-level Infrastructure firewall policies in `tenants/isolation.tf` sit in front of it and let three things back in:
+| Group | Members | Used by |
+|---|---|---|
+| `tenant-vpcs` | The tenant VPCs, by name | Applied-to of all three policies |
+| `tenant-mgmt-shared-services` | The shared-services VPC, by name | `tenant-mgmt` source |
+| `tenant-mgmt-avi` | `100.64.0.0/10`, the Avi Service Engine range | `tenant-mgmt` source |
+| `tenant-private-ranges` | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10` | `tenant-egress` destination, excluded |
+| `tenant-lb-vips` | `vip_range` from `tenants/tenants.auto.tfvars` | `tenant-vip-http` destination |
 
-- AWX, matched as the shared-services VPC object rather than an IP
-- internet egress
-- HTTP to the load balancer VIPs
+A group with VPC members cannot also hold IPs, so the shared-services VPC and the Avi range are two groups.
 
-Traffic from one tenant to the other matches none of them. The policies need vDefend (NSX distributed firewall). All of it is org scope, so an Organization Administrator can create it.
+### Firewall policies
 
-AWX reaches the tenant VMs because its cluster nodes sit on a PrivateTGW subnet. Traffic from them crosses the transit gateway without SNAT, so the tenant firewall can allow "the shared-services VPC" as an object instead of an IP.
+| Policy | Priority | Direction | From | To | Service |
+|---|---|---|---|---|---|
+| `tenant-mgmt` | 10 | In | `tenant-mgmt-shared-services`, `tenant-mgmt-avi` | Any | Any |
+| `tenant-egress` | 20 | InOut | Any | Not `tenant-private-ranges` | Any |
+| `tenant-vip-http` | 30 | InOut | Any | `tenant-lb-vips` | HTTP |
+
+All three are stateful, in the Infrastructure category, and applied to `tenant-vpcs`.
+
+### Why it is shaped this way
+
+- **AWX is matched as a VPC, not an IP.** The AWX cluster nodes sit on a PrivateTGW subnet. Traffic from them crosses the transit gateway without SNAT, so the tenant firewall sees the shared-services VPC as the source and can allow it as an object.
+- **Egress needs its own allow.** The profile's deny also sits on the VPC's own service gateway ports, where the packet arrives already SNATed, so "allow out" from the VM is not enough. `tenant-egress` allows any source to anything outside the private ranges, which never includes the other tenant.
+- **The VIPs need their own allow.** The Avi Service Engine NICs sit inside the tenant VPC, so HTTP to a VIP is inbound traffic that the profile would drop.
 
 ## Gotchas
 
