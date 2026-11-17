@@ -70,9 +70,9 @@ variable "awx_cluster" {
     name     = optional(string, "awx")
     class    = optional(string, "builtin-generic-v3.8.0")
     version  = optional(string, "v1.36.1+vmware.4")
-    vm_class = optional(string, "best-effort-medium")
+    vm_class = optional(string, "best-effort-large")
   })
-  description = "The VKS cluster AWX runs on: a single node, the control plane, untainted so AWX schedules on it."
+  description = "The VKS cluster AWX runs on: a single node. It needs more than 2 vCPU, because VKS system pods request about 1.9 cores."
   default     = {}
 }
 
