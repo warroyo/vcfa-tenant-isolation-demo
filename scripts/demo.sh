@@ -20,7 +20,8 @@ for t in $TENANTS; do KC[$t]=$(tenant_kubeconfig "$t"); done
 while :; do
   done_count=0
   for t in $TENANTS; do
-    k() { kubectl --kubeconfig "${KC[$t]}" "$@" 2>/dev/null; }
+    # Status is missing until each object exists, so a failed read is not fatal.
+    k() { kubectl --kubeconfig "${KC[$t]}" "$@" 2>/dev/null || true; }
     ip=$(k get vm "$t-web" -o jsonpath='{.status.network.primaryIP4}')
     phase=$(k get ansiblebindingvms -o jsonpath='{.items[0].status.phase}')
     vip=$(k get vmservice "$t-web" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')

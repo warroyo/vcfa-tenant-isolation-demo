@@ -57,8 +57,9 @@ resource "kubectl_manifest" "vpc_attachment" {
   depends_on = [kubectl_manifest.vpc]
 }
 
-# Sized for one node VM (plus one during a rollout) and a 2Gi Postgres volume. VM classes are
-# best-effort, so nothing is reserved.
+# Storage counts each node's 20Gi root disk, the worker's 20Gi containerd
+# disk and the 2Gi Postgres volume: 82Gi, plus 40Gi while a worker rolls
+# out. VM classes are best-effort, so nothing is reserved.
 resource "vcfa_supervisor_namespace" "awx" {
   name_prefix  = "awx"
   description  = "AWX for the tenant isolation demo."
@@ -70,7 +71,7 @@ resource "vcfa_supervisor_namespace" "awx" {
 
   storage_classes_class_config_overrides {
     name  = var.storage_class
-    limit = "80Gi"
+    limit = "130Gi"
   }
 
   zones_class_config_overrides {
@@ -130,6 +131,18 @@ resource "kubectl_manifest" "awx_cluster" {
             class    = "node-pool"
             name     = "${var.awx_cluster.name}-np"
             replicas = 1
+            # The 16Gi root disk fills up once AWX pulls its execution
+            # environment image, and the kubelet evicts AWX. Images go on
+            # their own disk.
+            variables = { overrides = [{
+              name = "volumes"
+              value = [{
+                name         = "containerd"
+                mountPath    = "/var/lib/containerd"
+                capacity     = "20Gi"
+                storageClass = var.storage_class
+              }]
+            }] }
           }]
         }
         variables = [

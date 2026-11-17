@@ -114,6 +114,10 @@ resource "kubectl_manifest" "vm" {
     }
   })
 
+  # Wait for the delete to finish. NSX refuses to delete the subnet while
+  # the VM's subnet port is still there.
+  wait = true
+
   depends_on = [kubectl_manifest.subnet, kubectl_manifest.cloud_init]
 }
 

@@ -79,7 +79,7 @@ variable "awx_cluster" {
 
 variable "ubuntu_image" {
   type = object({
-    name = optional(string, "ubuntu-24.04-cloud")
+    name = optional(string, "tenant-demo-ubuntu-24.04")
     url  = optional(string, "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.ova")
   })
   description = "The Ubuntu cloud image the tenant VMs boot from."

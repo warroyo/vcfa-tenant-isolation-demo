@@ -32,16 +32,17 @@ access_token() {
     --data-urlencode "refresh_token=$VCFA_API_TOKEN" | jq -r .access_token
 }
 
-# write_kubeconfig <api address> <file>: a kubeconfig for one namespace's API.
+# write_kubeconfig <api address> <file> [namespace]: a kubeconfig for one
+# namespace's API. The namespace becomes the context's default.
 write_kubeconfig() {
-  local host=$1 file=$2 token
+  local host=$1 file=$2 namespace=${3:-} token
   token=$(access_token)
   (umask 077; cat >"$file" <<EOF
 apiVersion: v1
 kind: Config
 clusters: [{name: vcfa, cluster: {server: "$host", insecure-skip-tls-verify: true}}]
 users: [{name: vcfa, user: {token: "$token"}}]
-contexts: [{name: vcfa, context: {cluster: vcfa, user: vcfa}}]
+contexts: [{name: vcfa, context: {cluster: vcfa, user: vcfa${namespace:+, namespace: \"$namespace\"}}}]
 current-context: vcfa
 EOF
   )
@@ -49,9 +50,9 @@ EOF
 
 # tenant_kubeconfig <tenant key>: path to a fresh kubeconfig for its namespace.
 tenant_kubeconfig() {
-  local file="$SECRETS/$1.kubeconfig" host
-  host=$(terraform -chdir="$REPO_ROOT/tenants" output -json tenants | jq -r --arg t "$1" '.[$t].host')
-  write_kubeconfig "$host" "$file"
+  local file="$SECRETS/$1.kubeconfig" tenant
+  tenant=$(terraform -chdir="$REPO_ROOT/tenants" output -json tenants | jq -c --arg t "$1" '.[$t]')
+  write_kubeconfig "$(jq -r .host <<<"$tenant")" "$file" "$(jq -r .namespace <<<"$tenant")"
   echo "$file"
 }
 
