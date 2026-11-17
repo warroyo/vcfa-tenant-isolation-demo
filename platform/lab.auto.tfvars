@@ -11,5 +11,5 @@ content_library_storage_policy = "vSAN Default Storage Policy"
 seg_name                       = "default-se-group"
 vpc_connectivity_profile       = "default--ans-cluster"
 
-# Custom 3 vCPU / 6Gi best-effort class, created by hand in vCenter for this lab.
-awx_cluster = { vm_class = "best-effort-awx" }
+# Custom 4 vCPU / 6Gi best-effort class, created by hand in vCenter for this lab.
+awx_cluster = { vm_class = "best-effort-awx-4c" }

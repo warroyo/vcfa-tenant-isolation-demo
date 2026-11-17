@@ -72,7 +72,7 @@ variable "awx_cluster" {
     version  = optional(string, "v1.36.1+vmware.4")
     vm_class = optional(string, "best-effort-large")
   })
-  description = "The VKS cluster AWX runs on: a single node. It needs more than 2 vCPU, because VKS system pods request about 1.9 cores."
+  description = "The VKS cluster AWX runs on: a single node. It needs 4 vCPU, because VKS system pods request about 3.2 cores."
   default     = {}
 }
 

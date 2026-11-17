@@ -33,6 +33,8 @@ export KUBECONFIG="$SECRETS/awx-cluster.kubeconfig"
 kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule- 2>/dev/null || true
 
 step "Installing the AWX operator"
+# Helm 4 hangs on HTTP/2 to the cluster's load-balanced API address.
+export DISABLE_HTTP2=true
 helm repo add awx-operator https://ansible-community.github.io/awx-operator-helm/ >/dev/null 2>&1 || true
 helm repo update awx-operator >/dev/null
 kubectl create namespace awx --dry-run=client -o yaml | kubectl apply -f -
