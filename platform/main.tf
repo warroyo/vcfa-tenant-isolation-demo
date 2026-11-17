@@ -57,7 +57,7 @@ resource "kubectl_manifest" "vpc_attachment" {
   depends_on = [kubectl_manifest.vpc]
 }
 
-# Sized for two small node VMs and a 2Gi Postgres volume. VM classes are
+# Sized for one node VM (plus one during a rollout) and a 2Gi Postgres volume. VM classes are
 # best-effort, so nothing is reserved.
 resource "vcfa_supervisor_namespace" "awx" {
   name_prefix  = "awx"
@@ -116,22 +116,15 @@ resource "kubectl_manifest" "awx_cluster" {
         serviceDomain = "cluster.local"
       }
       topology = {
-        classRef     = { name = var.awx_cluster.class, namespace = "vmware-system-vks-public" }
-        version      = var.awx_cluster.version
+        classRef = { name = var.awx_cluster.class, namespace = "vmware-system-vks-public" }
+        version  = var.awx_cluster.version
+        # One node and no workers. With the control-plane taint removed,
+        # AWX schedules on the control plane node.
         controlPlane = { replicas = 1 }
-        workers = {
-          machineDeployments = [{
-            class    = "node-pool"
-            name     = "${var.awx_cluster.name}-np"
-            replicas = 1
-            variables = {
-              overrides = [{ name = "vmClass", value = var.awx_cluster.worker_class }]
-            }
-          }]
-        }
         variables = [
-          { name = "vmClass", value = var.awx_cluster.control_plane_class },
+          { name = "vmClass", value = var.awx_cluster.vm_class },
           { name = "storageClass", value = var.storage_class },
+          { name = "node", value = { taints = [] } },
           {
             name = "networks"
             value = {

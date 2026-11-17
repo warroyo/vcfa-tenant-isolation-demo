@@ -67,13 +67,12 @@ variable "vpc_cidr" {
 
 variable "awx_cluster" {
   type = object({
-    name                = optional(string, "awx")
-    class               = optional(string, "builtin-generic-v3.8.0")
-    version             = optional(string, "v1.36.1+vmware.4")
-    control_plane_class = optional(string, "best-effort-small")
-    worker_class        = optional(string, "best-effort-medium")
+    name     = optional(string, "awx")
+    class    = optional(string, "builtin-generic-v3.8.0")
+    version  = optional(string, "v1.36.1+vmware.4")
+    vm_class = optional(string, "best-effort-medium")
   })
-  description = "The VKS cluster AWX runs on: one control plane node and one worker, the smallest that fits AWX."
+  description = "The VKS cluster AWX runs on: a single node, the control plane, untainted so AWX schedules on it."
   default     = {}
 }
 
