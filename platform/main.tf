@@ -118,11 +118,22 @@ resource "kubectl_manifest" "awx_cluster" {
       topology = {
         classRef = { name = var.awx_cluster.class, namespace = "vmware-system-vks-public" }
         version  = var.awx_cluster.version
-        # One node and no workers. The node keeps its control-plane taint, and
-        # scripts/awx.sh gives AWX and its operator a toleration for it.
-        controlPlane = { replicas = 1 }
+        # One control plane node and one worker, the smallest supported shape.
+        # Several VKS system pods do not tolerate the control-plane taint, so
+        # a single node would need the taint removed.
+        controlPlane = {
+          replicas  = 1
+          variables = { overrides = [{ name = "vmClass", value = var.awx_cluster.control_plane_class }] }
+        }
+        workers = {
+          machineDeployments = [{
+            class    = "node-pool"
+            name     = "${var.awx_cluster.name}-np"
+            replicas = 1
+          }]
+        }
         variables = [
-          { name = "vmClass", value = var.awx_cluster.vm_class },
+          { name = "vmClass", value = var.awx_cluster.worker_class },
           { name = "storageClass", value = var.storage_class },
           {
             name = "networks"

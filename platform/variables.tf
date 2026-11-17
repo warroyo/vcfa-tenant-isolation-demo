@@ -67,12 +67,13 @@ variable "vpc_cidr" {
 
 variable "awx_cluster" {
   type = object({
-    name     = optional(string, "awx")
-    class    = optional(string, "builtin-generic-v3.8.0")
-    version  = optional(string, "v1.36.1+vmware.4")
-    vm_class = optional(string, "best-effort-large")
+    name                = optional(string, "awx")
+    class               = optional(string, "builtin-generic-v3.8.0")
+    version             = optional(string, "v1.36.1+vmware.4")
+    control_plane_class = optional(string, "best-effort-small")
+    worker_class        = optional(string, "best-effort-large")
   })
-  description = "The VKS cluster AWX runs on: a single node. It needs 4 vCPU, because VKS system pods request about 3.2 cores."
+  description = "The VKS cluster AWX runs on: one control plane node and one worker. AWX and most VKS system pods run on the worker, which needs about 2.2 vCPU and 3.5Gi of requests."
   default     = {}
 }
 

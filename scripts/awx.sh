@@ -28,10 +28,6 @@ done
 (umask 077; kubectl -n "$NAMESPACE" get secret "$CLUSTER-kubeconfig" -o jsonpath='{.data.value}' | base64 -d >"$SECRETS/awx-cluster.kubeconfig")
 export KUBECONFIG="$SECRETS/awx-cluster.kubeconfig"
 
-# Single-node cluster: AWX and its operator tolerate the control-plane taint.
-# Removing the taint instead makes Cluster API report the Machine not Ready.
-TOLERATION='{"key": "node-role.kubernetes.io/control-plane", "operator": "Exists", "effect": "NoSchedule"}'
-
 step "Installing the AWX operator"
 # Helm 4 hangs on HTTP/2 to the cluster's load-balanced API address.
 export DISABLE_HTTP2=true
@@ -40,8 +36,7 @@ helm repo update awx-operator >/dev/null
 kubectl create namespace awx --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace awx pod-security.kubernetes.io/enforce=privileged --overwrite
 helm upgrade --install awx-operator awx-operator/awx-operator -n awx \
-  --version "$AWX_OPERATOR_CHART_VERSION" --wait \
-  --set-json "operator-controller={\"spec\": {\"template\": {\"spec\": {\"tolerations\": [$TOLERATION]}}}}"
+  --version "$AWX_OPERATOR_CHART_VERSION" --wait
 
 # Small requests: one demo, two VMs. VKS clusters have no default
 # StorageClass, so Postgres names one.
@@ -59,10 +54,6 @@ spec:
     requests:
       storage: 2Gi
   postgres_data_volume_init: true
-  tolerations: |
-    - $TOLERATION
-  postgres_tolerations: |
-    - $TOLERATION
   web_resource_requirements:
     requests: {cpu: 100m, memory: 256Mi}
   task_resource_requirements:
